@@ -44,7 +44,7 @@ app.post('/api/login', (req, res) => {
 
     for (let user of users) {
         if (username == user.username && password == user.password) {
-            let token = jwt.sign({id: user.id, username: user.username}, secretKey, { expiresIn: '180s' });
+            let token = jwt.sign({id: user.id, username: user.username}, secretKey, { expiresIn: '3m' });
             res.json({
                 success: true,
                 err: null,
@@ -76,17 +76,31 @@ app.get('/api/settings', jwtMW, (req, res) => {
     });
 });
 
+app.get('/api/timeout', (req, res) => {
+    res.json({
+        success: true,
+        myContent: 'Sorry, your session has timed out. You will be redirected to the login page in 5 seconds.'
+    });
+});
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.use(function (err, req, res, next) {
-    if (err.name === 'UnauthorizedError') {
+    if (err.name === 'UnauthorizedError' && err.inner.name === 'TokenExpiredError') {
+        res.status(401).json({
+            success: false,
+            officialError: err,
+            err: 'Token is expired'
+        });
+    }
+    else if (err.name === 'UnauthorizedError') {
         res.status(401).json({
             success: false,
             officialError: err,
             err: 'Username or password is incorrect 2'
-        });
+        }); 
     }
     else {
         next(err);

@@ -32,6 +32,7 @@
     </div>
 
     <script>
+        
         function login() {
             const data = {
                 username: document.getElementById('username').value,
@@ -45,44 +46,79 @@
                 if (res && res.data && res.data.success) {
                     const token = res.data.token;
                     localStorage.setItem('jwt', token);
-                    getDashboard();
+                    getDashboard('dashboard');
                 }
             });
         }
 
         function getDashboard(name) {
             const token = localStorage.getItem('jwt');
-            axios.get('/api/dashboard', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }).then(res => {
-                if (res && res.data && res.data.success) {
-                    const url = name + ".html";
-                    history.pushState(null, null, url);
-                    document.querySelector('h1.row').innerHTML = "Dashboard";
-                    document.querySelector('main').innerHTML = res.data.myContent;
-                }
-                // else {
-                //     console.log (res.data);
-                // }
-            });
+            if (tokenExpired(token)) {
+                console.log("Timeout");
+                getTimeout();
+            }
+            else {
+                axios.get('/api/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }).then(res => {
+                    if (res && res.data && res.data.success) {
+                        const url = name + ".html";
+                        history.pushState(null, null, url);
+                        document.querySelector('h1.row').innerHTML = "Dashboard";
+                        document.querySelector('main').innerHTML = res.data.myContent;
+                    }
+                });
+            }
         }
 
         function getSettings(name) {
             const token = localStorage.getItem('jwt');
-            axios.get('/api/settings', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }).then(res => {
-                const url = name + ".html";
-                if (res && res.data && res.data.success) {
-                    history.pushState(null, null, url);
-                    document.querySelector('h1.row').innerHTML = "Settings";
-                    document.querySelector('main').innerHTML = res.data.myContent;
-                }
+            if (tokenExpired(token)) {
+                console.log("Timeout");
+                getTimeout();
+            }
+            else {
+                axios.get('/api/settings', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }).then(res => {
+                    const url = name + ".html";
+                    if (res && res.data && res.data.success) {
+                        history.pushState(null, null, url);
+                        document.querySelector('h1.row').innerHTML = "Settings";
+                        document.querySelector('main').innerHTML = res.data.myContent;
+                        return;
+                    }
+                });
+            }
+        }
+
+        function getTimeout() {
+            axios.get('api/timeout').then(res => {
+                document.querySelector('h1.row').innerHTML = "Timeout";
+                document.querySelector('main').innerHTML = res.data.myContent;
             });
+            setTimeout(() => { location.reload() }, 5000);
+        }
+
+        function tokenExpired (token) {
+            const jwtDecode = JSON.parse(atob(token.split('.')[1]));
+            console.log(jwtDecode);
+            console.log("Creation time: ", new Date(jwtDecode.iat * 1000));
+            console.log("Current time: ", new Date(Date.now()));
+            console.log("Expire time: ", new Date(jwtDecode.exp * 1000));
+            if (
+                token &&
+                jwtDecode.exp < Date.now() / 1000
+            ) {
+                console.log("Token expired");
+                return true;
+            }
+            console.log("Token not expired");
+            return false;
         }
 
         // function onLoad() {
